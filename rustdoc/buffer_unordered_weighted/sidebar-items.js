@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["BufferUnorderedWeighted","Stream for the `buffer_unordered_weighted` method."]],"trait":[["StreamExt","An extension trait for `Stream`s that provides `buffer_unordered_weighted`."]]};

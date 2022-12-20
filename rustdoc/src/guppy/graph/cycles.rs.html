@@ -1,0 +1,626 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/guppy-0.15.1/src/graph/cycles.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>cycles.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../guppy/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright (c) The cargo-guppy Contributors
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+</span><span class="doccomment">//! Code for handling cycles in dependency graphs.
+//!
+//! See [`Cycles`][] for detailed docs.
+
+</span><span class="kw">use crate</span>::{
+    graph::{PackageGraph, PackageIx},
+    petgraph_support::scc::Sccs,
+    Error, PackageId,
+};
+
+<span class="doccomment">/// Contains information about dependency cycles.
+///
+/// More accurately, information about Strongly Connected Components with 2 or more elements.
+/// Constructed through `PackageGraph::cycles`.
+///
+/// This page includes a bunch of detailed information on cycles, but here&#39;s the TLDR:
+///
+/// * Yes, cycles can happen
+/// * Cycles only happen with dev-dependencies
+/// * These cycles have properties that make them easy to handle
+/// * We handle this in APIs like [`PackageSet::packages`][`crate::graph::PackageSet::packages`]
+/// * As a result, you probably don&#39;t actually need this module
+///
+/// The slighly more detailed summary is that any graph of &quot;packages&quot; is conflating
+/// the &quot;real&quot; package with its tests, which are actually separate binaries. These
+/// tests *always* depend on the &quot;real&quot; package, and if we bothered to encode that
+/// then any package with tests would have a cyclic dependency on itself -- so we
+/// don&#39;t encode that. Unfortunately dev-dependencies allow tests to *indirectly*
+/// depend on the &quot;real&quot; package, creating a cycle you *do* see.
+///
+/// If you only care about &quot;real&quot; builds, you can simply ignore the dev-dependency
+/// edges and restore a nice and simple DAG that can be topologically sorted. This is what
+/// we do for you in APIs like [`PackageSet::packages`][`crate::graph::PackageSet::packages`].
+///
+/// If you care about tests and dev-dependencies, we recommend treating those as
+/// different from the &quot;real&quot; ones (essentially desugarring the package into two nodes).
+/// Because all dev builds are roots of the package graph (nothing depends on a test/benchmark),
+/// they can always go at the start/end (depending on direction) of the topological sort.
+/// This means you can just do add a second loop before/after the &quot;real&quot; one.
+///
+/// For instance, here&#39;s a simple program that recursively computes some property of packages
+/// (here &quot;whether serde is a transitive dependency&quot;):
+///
+/// ```
+/// use guppy::{CargoMetadata, graph::DependencyDirection};
+/// use std::collections::HashMap;
+///
+/// let metadata = CargoMetadata::parse_json(include_str!(&quot;../../../fixtures/small/metadata1.json&quot;)).unwrap();
+/// let package_graph = metadata.build_graph().unwrap();
+/// let workspace_members = package_graph.resolve_workspace();
+/// let dependency_graph = package_graph.query_workspace().resolve();
+///
+/// // Whether the &quot;real&quot; package uses serde
+/// let mut package_uses_serde = HashMap::new();
+/// // Whether the &quot;dev&quot; package uses serde
+/// let mut dev_package_uses_serde = HashMap::new();
+///
+/// // Iterate over packages in reverse topo order (process dependencies first)
+/// for package in dependency_graph.packages(DependencyDirection::Reverse) {
+///     // A package uses serde if...
+///     let uses_serde = if package.name() == &quot;serde&quot; {
+///         // It is literally serde (base case)
+///         true
+///     } else {
+///         // It has a non-dev-dependency on a package which uses serde
+///         // (dev-dependencies handled in the second loop)
+///         package.direct_links().any(|link| {
+///             !link.dev_only() &amp;&amp; package_uses_serde[link.to().id()]
+///         })
+///     };
+///     // Record this package&#39;s result
+///     package_uses_serde.insert(package.id(), uses_serde);
+/// }
+///
+/// // Now iterate over the workspace members to handle their tests (if any)
+/// // Note that DependencyDirection doesn&#39;t matter here, we&#39;re literally
+/// // just looping over every workspace member in arbitrary order!
+/// for package in workspace_members.packages(DependencyDirection::Reverse) {
+///     // Check dev-packages using the &quot;real&quot; package results for all links!
+///     let uses_serde = package.direct_links().any(|link| {
+///         package_uses_serde[link.to().id()]
+///     });
+///     // Record this dev-package&#39;s result
+///     dev_package_uses_serde.insert(package.id(), uses_serde);
+/// }
+///
+/// // Now we have all the values computed!
+/// for (id, &amp;uses_serde) in &amp;package_uses_serde {
+///     if uses_serde {
+///         let name = package_graph.metadata(id).unwrap().name();
+///         println!(&quot;{name} uses serde!&quot;);
+///     }
+/// }
+/// for (id, &amp;uses_serde) in &amp;dev_package_uses_serde {
+///     if uses_serde {
+///         let name = package_graph.metadata(id).unwrap().name();
+///         println!(&quot;{name}&#39;s tests use serde!&quot;);
+///     }
+/// }
+/// ```
+///
+///
+///
+///
+///
+/// # Why Cargo Dependency Graphs Have Cycles
+///
+/// Dependency graphs are generally Directed Acyclic Graphs (DAGs), where each package
+/// is a node and each dependency is an edge. These graphs are acyclic (contain no cycles)
+/// because anything else would be a paradox -- how do you build X if it depends on itself?
+/// You don&#39;t!
+///
+/// So why does this API exist? It wouldn&#39;t make sense for Cargo to have cycles!
+///
+/// The problem is that &quot;the Cargo dependency graph&quot; is actually two different graphs
+/// at different levels of abstraction: The Package Graph (Guppy, cargo-metadata), and
+/// The Build Graph (Cargo&#39;s internals). These two graphs are different because each
+/// package is actually a bunch of different
+/// [build targets in a trenchcoat][`crate::graph::PackageMetadata::build_targets`] -- libs,
+/// bins, tests, benches, and so on. In The Build Graph these different build targets get
+/// their own nodes. In The Package Graph all those targets gets merged together into one
+/// big node. The Build Graph is always a proper DAG, but The Package Graph can have cycles.
+///
+/// Thankfully these cycles can only be created by one specific (and rare) situation:
+/// dev-dependencies. **A test/bench target for a package is allowed to indirectly
+/// depend on the same package&#39;s lib/bin target, and this creates apparent cycles
+/// in the package graph!** That&#39;s it!
+///
+/// As we&#39;ll see, **simply ignoring all dev-dependency edges eliminates all cycles
+/// *and* preserves the ordering constraints of the dependency graph.**
+///
+///
+///
+/// # An Example Cyclic Workspace
+///
+/// As a concrete example, consider [the serde workspace][serde_github], which
+/// actually has this &quot;problem&quot;: there&#39;s a &quot;cycle&quot; between serde and serde_derive.
+/// In normal builds this cycle doesn&#39;t exist: serde_derive is actually a standalone
+/// crate, while [serde (optionally) pulls in serde_derive as a dependency][serde_toml].
+/// The &quot;cycle&quot; only appears when testing serde_derive: [serde_derive&#39;s tests quite
+/// reasonably depend on serde][serde_derive_toml] to test the proc-macro&#39;s output,
+/// creating a cycle!
+///
+/// The way to resolve this monstrosity is to realize that the tests for serde_derive
+/// are actually a completely different binary from the serde_derive *library*. Let&#39;s
+/// call those tests serde_derive_dev. So although the (Package) graph reported by Guppy
+/// (and cargo-metadata) looks like a cycle:
+///
+/// ```text
+/// serde &lt;-----+
+///   |         |
+///   |         |
+///   +--&gt; serde_derive
+/// ```
+///
+/// In actuality, serde_derive_dev breaks the cycle and creates a nice clean DAG
+/// (in The Build Graph):
+///
+/// ```text
+///   +-- serde_derive_dev
+///   |          |
+///   v          |
+/// serde        |
+///   |          |
+///   |          v
+///   +---&gt; serde_derive
+/// ```
+///
+/// Here&#39;s the really important thing to notice: serde_derive_dev is actually a *root*
+/// in The Build Graph, and this is always true! Nothing should ever depend on the *tests*
+/// or *benchmarks* for another library.
+///
+/// This is the key insight to ignoring dev-dependency edges. As we&#39;ll see, the roots
+/// (and leaves) of a DAG are in some sense &quot;ignorable&quot; by the rest of the graph,
+/// because they can&#39;t change the ordering constraints between other packages.
+///
+///
+///
+/// # Topological Sort Is Great (And Composable)
+///
+/// Now that we understand *why* cycles can happen in the package graph, let&#39;s look at
+/// what those cycles mess up, and how to deal with them.
+///
+/// One of the big reasons everyone loves DAGs is because you can get a Topological
+/// Sort of them. Topological Sort
+/// (with [`DependencyDirection::Forward`][`crate::graph::DependencyDirection::Forward`])
+/// is just a fancy way of saying &quot;a list where packages always appear before their dependencies&quot;
+/// (vice-versa for [`DependencyDirection::Reverse`][`crate::graph::DependencyDirection::Reverse`]).
+///
+/// This is really convenient! If you need to do things in &quot;dependency order&quot; you can just
+/// topologically sort the packages and then boring old for-loops will magically get
+/// everything done before it&#39;s needed.
+///
+/// Unfortunately, you can&#39;t get the Topological Sort of a graph with cycles because that
+/// doesn&#39;t make sense. And yet, Guppy has
+/// [several APIs which do exactly that][`crate::graph::PackageSet::packages`].
+/// What gives? The docs say:
+///
+/// &gt; The packages within a dependency cycle will be returned in non-dev order. When the
+/// &gt; direction is forward, if package Foo has a dependency on Bar, and Bar has a cyclic
+/// &gt; dev-dependency on Foo, then Foo is returned before Bar.
+///
+/// We just ignore the dev-dependency edges! Problem Solved.
+///
+/// But isn&#39;t this throwing out important information that could change the result? Nope!
+///
+/// As we saw in the previous section, all dev-builds are roots in The Build Graph.
+/// Ignoring all dev-dependency edges is equivalent to deleting all of those roots.
+/// This may &quot;orphan&quot; dependencies that are only used for dev-builds, but we still
+/// keep them in the graph and properly include them in the sort.
+///
+/// As it turns out, you can recursively compute the topological sort of a graph as follows:
+///
+/// 1. delete a root (or leaf)
+/// 2. compute the topological sort of the new graph
+/// 3. append the root (or leaf) to the start (or end) of the list
+///
+/// **Even although we delete all the dev-nodes from the graph when doing our sort,
+/// if you want to &quot;add them back&quot; the only thing you need to do is handle them before
+/// (or after) everything else!** Even better: all the dev-builds are roots at the same
+/// time, so you can process them in any order!
+///
+/// Just remember that every node with dev-dependencies is really two nodes: the &quot;normal&quot;
+/// version without dev-dependencies, and the version with them. Exactly how you want
+/// to express that notion in your code is up to you. (Two different loops is the simplest.)
+///
+///
+///
+///
+/// # Reasoning About Cycles: Strongly Connected Components
+///
+/// Ok but wait, none of that involved Strongly Connected Components! Yeah, isn&#39;t that great? 😄
+///
+/// Oh you still want to &quot;know&quot; about the cycles? Then we&#39;ve gotta bust out the heavy
+/// general-purpose machinery. Thankfully the problem of cycles in directed graphs is
+/// an old and well-studied problem with a conceptually simple solution: hide the cycle
+/// in a box and pretend that it&#39;s just one Really Big Node in the DAG.
+///
+/// Yes, really, that&#39;s all that Strongly Connected Components are. More precisely, SCCs
+/// are defined to be maximal sets of nodes such that &quot;every node in an SCC can reach
+/// every other node in that SCC&quot; (a property which definitely holds for cycles).
+/// The reason for this more complicated definition is that you can have a bunch of
+/// cycles all knotted together in a nasty ball, and trying to tease out individual
+/// cycles isn&#39;t really helpful. So we just wrap the whole ball of nodes up into one
+/// big &quot;I give up&quot; box and forget about it!
+///
+/// Now, what does this get us?
+///
+/// The graph *between* Strongly Connected Components is *always* a DAG, so you can
+/// always topologically sort *that*. In really nasty cases this is just vacuously
+/// true (all the nodes end up in one SCC, and so the &quot;Graph of SCCs&quot; is just one big
+/// unsorted node). On the other hand, if the graph already *is* a DAG then each node
+/// is its own SCC, and so we lose nothing. In this way SCCs give us a way to preserve
+/// all the *nice* parts of our graph while also isolating the problematic parts
+/// (SCCs with more than 1 node) to something self-contained that we can handle specially.
+///
+/// In the general case, nothing more can be done to order an SCC. By definition every
+/// node depends on every other node! But as we&#39;ve seen in the previous section, there
+/// actually *is* a good way to order packages even with cycles, and so we maintain
+/// that ordering for our SCCs: it&#39;s just the topological sort with all the
+/// dev-dependencies ignored.
+///
+///
+///
+///
+/// [serde_github]: https://github.com/serde-rs/serde
+/// [serde_toml]: https://github.com/serde-rs/serde/blob/072145e0e913df7686f001dbf29e43a0ff7afac4/serde/Cargo.toml#L17-L18
+/// [serde_derive_toml]: https://github.com/serde-rs/serde/blob/072145e0e913df7686f001dbf29e43a0ff7afac4/serde_derive/Cargo.toml#L29-L30
+
+</span><span class="kw">pub struct </span>Cycles&lt;<span class="lifetime">&#39;g</span>&gt; {
+    package_graph: <span class="kw-2">&amp;</span><span class="lifetime">&#39;g </span>PackageGraph,
+    sccs: <span class="kw-2">&amp;</span><span class="lifetime">&#39;g </span>Sccs&lt;PackageIx&gt;,
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;g</span>&gt; Cycles&lt;<span class="lifetime">&#39;g</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(package_graph: <span class="kw-2">&amp;</span><span class="lifetime">&#39;g </span>PackageGraph) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            package_graph,
+            sccs: package_graph.sccs(),
+        }
+    }
+
+    <span class="doccomment">/// Returns true if these two IDs are in the same cycle.
+    ///
+    /// This is equivalent to checking if they&#39;re in the same Strongly Connected Component.
+    </span><span class="kw">pub fn </span>is_cyclic(<span class="kw-2">&amp;</span><span class="self">self</span>, a: <span class="kw-2">&amp;</span>PackageId, b: <span class="kw-2">&amp;</span>PackageId) -&gt; <span class="prelude-ty">Result</span>&lt;bool, Error&gt; {
+        <span class="kw">let </span>a_ix = <span class="self">self</span>.package_graph.package_ix(a)<span class="question-mark">?</span>;
+        <span class="kw">let </span>b_ix = <span class="self">self</span>.package_graph.package_ix(b)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.sccs.is_same_scc(a_ix, b_ix))
+    }
+
+    <span class="doccomment">/// Returns all the Strongly Connected Components (SCCs) of 2 or more elements in this graph.
+    ///
+    /// SCCs are returned in topological order: if packages in SCC B depend on packages in SCC
+    /// A, A is returned before B.
+    ///
+    /// Within an SCC, nodes are returned in non-dev order: if package Foo has a dependency on Bar,
+    /// and Bar has a cyclic dev-dependency on Foo, then Foo is returned before Bar.
+    ///
+    /// See the type-level docs for details.
+    </span><span class="kw">pub fn </span>all_cycles(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Vec&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;g </span>PackageId&gt;&gt; + DoubleEndedIterator + <span class="lifetime">&#39;g </span>{
+        <span class="kw">let </span>dep_graph = <span class="kw-2">&amp;</span><span class="self">self</span>.package_graph.dep_graph;
+        <span class="self">self</span>.sccs
+            .multi_sccs()
+            .map(<span class="kw">move </span>|scc| scc.iter().map(<span class="kw">move </span>|ix| <span class="kw-2">&amp;</span>dep_graph[<span class="kw-2">*</span>ix]).collect())
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="guppy" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0 (69f9c33d7 2022-12-12)" ></div></body></html>
